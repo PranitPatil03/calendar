@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { YearCalendar } from './year-calendar';
-import { QuoteDisplay } from './quote-display';
+
 
 interface CalendarGridProps {
     birthdate: Date;
@@ -18,10 +18,7 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
 
     return (
         <div className="h-screen bg-neutral-900 flex flex-col overflow-hidden relative">
-            {/* Fixed Quote - Bottom Right */}
-            <div className="fixed bottom-6 right-6 z-40 max-w-xs">
-                <QuoteDisplay />
-            </div>
+
 
             {/* Year Calendar - Full Screen */}
             <motion.div

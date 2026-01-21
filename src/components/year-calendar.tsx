@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateYearDays, DayData, getDaysInYear, getProgressPercentage } from '@/lib/calendar-utils';
+import { QuoteDisplay } from './quote-display';
 
 // Animated number for time display
 function AnimatedNumber({ value }: { value: string }) {
@@ -86,6 +87,10 @@ function InlineClock() {
                 <span className="text-neutral-600">·</span>
                 <span className="text-white font-semibold">{monthDay}, {year}</span>
             </div>
+            {/* Quote Display - Below date */}
+            <div className="mt-3 max-w-lg">
+                <QuoteDisplay />
+            </div>
         </div>
     );
 }
@@ -116,7 +121,7 @@ export function YearCalendar({ year = new Date().getFullYear() }: YearCalendarPr
 
     useEffect(() => {
         const calculateSize = () => {
-            const headerHeight = 180;
+            const headerHeight = 220; // Increased to account for quote
             const footerHeight = 60;
             const padding = 64;
             const availableHeight = window.innerHeight - headerHeight - footerHeight - padding;
@@ -143,7 +148,7 @@ export function YearCalendar({ year = new Date().getFullYear() }: YearCalendarPr
             {/* Spacer */}
             <div className="h-2"></div>
 
-            {/* Time and Date - Centered */}
+            {/* Time and Date and Quote - Centered */}
             <InlineClock />
 
             {/* Calendar Grid - Months Only */}
