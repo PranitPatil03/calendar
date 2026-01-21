@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { YearCalendar } from './year-calendar';
-import { LiveClock } from './live-clock';
 import { QuoteDisplay } from './quote-display';
 
 interface CalendarGridProps {
@@ -19,11 +18,6 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
 
     return (
         <div className="h-screen bg-neutral-900 flex flex-col overflow-hidden relative">
-            {/* Fixed Time Card - Top Left */}
-            <div className="fixed top-4 left-4 z-40">
-                <LiveClock />
-            </div>
-
             {/* Fixed Quote - Bottom Right */}
             <div className="fixed bottom-6 right-6 z-40 max-w-xs">
                 <QuoteDisplay />
