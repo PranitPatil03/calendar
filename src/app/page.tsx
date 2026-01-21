@@ -1,58 +1,50 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SetupScreen } from '@/components/setup-screen';
 import { CalendarGrid } from '@/components/calendar-grid';
-import { loadCalendarData, saveCalendarData, CalendarData } from '@/lib/storage';
+import { loadCalendarData, saveCalendarData, CalendarData, updateBirthdate } from '@/lib/storage';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
 
-  // Load saved data on mount
+  // Load saved data on mount - always returns valid data (with defaults if none saved)
   useEffect(() => {
-    const saved = loadCalendarData();
-    if (saved) {
-      setCalendarData(saved);
-    }
+    const data = loadCalendarData();
+    setCalendarData(data);
     setIsLoading(false);
   }, []);
 
-  const handleSetupComplete = (birthdate: Date, lifeExpectancy: number) => {
-    const data: CalendarData = {
-      birthdate: birthdate.toISOString(),
-      lifeExpectancy,
-      notes: {},
-    };
-    saveCalendarData(data);
-    setCalendarData(data);
+  const handleUpdateBirthdate = (birthdate: Date, lifeExpectancy: number) => {
+    updateBirthdate(birthdate, lifeExpectancy);
+    const updated = loadCalendarData();
+    setCalendarData(updated);
   };
 
-  const handleReset = () => {
-    setCalendarData(null);
+  const handleNotesUpdate = (notes: Record<number, { text: string; category?: string; eventName?: string }>) => {
+    if (!calendarData) return;
+    const updated = { ...calendarData, notes };
+    saveCalendarData(updated);
+    setCalendarData(updated);
   };
 
-  // Show nothing while loading to prevent flash
-  if (isLoading) {
+  // Show loading spinner briefly
+  if (isLoading || !calendarData) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  // Show setup if no saved data
-  if (!calendarData) {
-    return <SetupScreen onComplete={handleSetupComplete} />;
-  }
-
-  // Show calendar
+  // Show calendar directly - no setup screen needed
   return (
     <CalendarGrid
       birthdate={new Date(calendarData.birthdate)}
       lifeExpectancy={calendarData.lifeExpectancy}
       notes={calendarData.notes}
-      onReset={handleReset}
+      onUpdateBirthdate={handleUpdateBirthdate}
+      onNotesUpdate={handleNotesUpdate}
     />
   );
 }

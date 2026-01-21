@@ -6,16 +6,19 @@ import { WeekCell } from './week-cell';
 import { NoteModal } from './note-modal';
 import { YearCalendar } from './year-calendar';
 import { GoalCalendar } from './goal-calendar';
+import { LiveClock } from './live-clock';
+import { QuoteDisplay } from './quote-display';
+import { BirthdayModal } from './birthday-modal';
 import { generateCalendarWeeks, WeekData, calculateWeeksLived, getTotalWeeks, getProgressPercentage, CalendarViewMode } from '@/lib/calendar-utils';
 import { saveCalendarData, loadCalendarData, clearCalendarData } from '@/lib/storage';
-import html2canvas from 'html2canvas';
-import { RotateCcw, Download, Calendar, CalendarDays, Target } from 'lucide-react';
+import { Calendar, CalendarDays, Target, Settings } from 'lucide-react';
 
 interface CalendarGridProps {
     birthdate: Date;
     lifeExpectancy: number;
     notes: Record<number, { text: string; category?: string; eventName?: string }>;
-    onReset: () => void;
+    onUpdateBirthdate: (birthdate: Date, lifeExpectancy: number) => void;
+    onNotesUpdate: (notes: Record<number, { text: string; category?: string; eventName?: string }>) => void;
 }
 
 const VIEW_MODES = [
@@ -24,14 +27,15 @@ const VIEW_MODES = [
     { id: 'goal' as CalendarViewMode, label: 'Goals', icon: Target },
 ];
 
-export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, onReset }: CalendarGridProps) {
+export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, onUpdateBirthdate, onNotesUpdate }: CalendarGridProps) {
     const [notes, setNotes] = useState(initialNotes);
     const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [cellSize, setCellSize] = useState(10);
     const [cellGap, setCellGap] = useState(2);
     const [decadeGap, setDecadeGap] = useState(8);
-    const [viewMode, setViewMode] = useState<CalendarViewMode>('life');
+    const [viewMode, setViewMode] = useState<CalendarViewMode>('year');
     const calendarRef = useRef<HTMLDivElement>(null);
 
     const weeks = useMemo(
@@ -44,53 +48,50 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
     const progress = getProgressPercentage(weeksLived, totalWeeks);
     const weeksRemaining = Math.max(0, totalWeeks - weeksLived);
 
-    // Group weeks by year
+    // Group weeks by year - exactly 52 weeks per row
     const weeksByYear = useMemo(() => {
         const grouped: WeekData[][] = [];
         for (let i = 0; i < lifeExpectancy; i++) {
-            grouped.push(weeks.filter((w) => w.year === i));
+            // Slice exactly 52 weeks for each year
+            const startIndex = i * 52;
+            const endIndex = startIndex + 52;
+            grouped.push(weeks.slice(startIndex, endIndex));
         }
         return grouped;
     }, [weeks, lifeExpectancy]);
 
-    // Calculate optimal cell size - MUCH larger on laptop/desktop
+    // Calculate optimal cell size - fit entire calendar on screen
     useEffect(() => {
         const calculateSize = () => {
-            const headerHeight = 56;
-            const footerHeight = 56;
-            const verticalPadding = 32;
-            const horizontalPadding = 100;
-            const labelWidth = 40;
+            const headerHeight = 44;
+            const footerHeight = 40;
+            const verticalPadding = 8;
+            const horizontalPadding = 16;
+            const labelWidth = 20;
 
             const availableHeight = window.innerHeight - headerHeight - footerHeight - verticalPadding;
             const availableWidth = window.innerWidth - labelWidth - horizontalPadding;
 
-            // Count decade gaps (every 10 years)
+            // Calculate for 100 years (rows) and 52 weeks (columns)
             const numDecadeGaps = Math.floor((lifeExpectancy - 1) / 10);
-            const extraDecadeSpace = numDecadeGaps * 6; // Extra pixels for decade gaps
 
-            // Available height for actual rows
-            const heightForRows = availableHeight - extraDecadeSpace;
+            // Use visible gaps between dots
+            const gapRatio = 0.25; // gap = 25% of cell size - clearly visible
+            const decadeGapRatio = 0.4; // decade gap = 40% of cell size
 
-            // Calculate cell size
-            const rowsWithGaps = lifeExpectancy + (lifeExpectancy - 1) * 0.2; // 20% gap ratio
-            const colsWithGaps = 52 + 51 * 0.2;
+            // Total units = cells + gaps between cells + decade gaps
+            const totalRowUnits = lifeExpectancy + (lifeExpectancy - 1) * gapRatio + numDecadeGaps * decadeGapRatio;
+            const totalColUnits = 52 + 51 * gapRatio;
 
-            const sizeFromHeight = heightForRows / rowsWithGaps;
-            const sizeFromWidth = availableWidth / colsWithGaps;
+            const sizeFromHeight = availableHeight / totalRowUnits;
+            const sizeFromWidth = availableWidth / totalColUnits;
 
-            // Use larger of width-based sizing on big screens
-            let optimalSize;
-            if (window.innerWidth > 1200) {
-                // Prefer larger cells on big screens
-                optimalSize = Math.min(sizeFromHeight, sizeFromWidth);
-            } else {
-                optimalSize = Math.min(sizeFromHeight, sizeFromWidth);
-            }
-
-            const finalSize = Math.max(5, Math.min(Math.floor(optimalSize), 16));
-            const finalGap = Math.max(1, Math.round(finalSize * 0.2));
-            const finalDecadeGap = Math.max(4, Math.round(finalSize * 0.6));
+            // Use the smaller size to ensure everything fits on screen
+            const optimalSize = Math.min(sizeFromHeight, sizeFromWidth);
+            // Allow minimum 2px cells for very small screens
+            const finalSize = Math.max(2, Math.floor(optimalSize));
+            const finalGap = Math.max(1, Math.ceil(finalSize * gapRatio));
+            const finalDecadeGap = Math.max(2, Math.ceil(finalSize * decadeGapRatio));
 
             setCellSize(finalSize);
             setCellGap(finalGap);
@@ -115,54 +116,35 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
             newNotes[weekIndex] = { text, category, eventName };
         }
         setNotes(newNotes);
-
-        const data = loadCalendarData();
-        if (data) {
-            data.notes = newNotes;
-            saveCalendarData(data);
-        }
+        onNotesUpdate(newNotes);
     };
 
     const handleDeleteNote = (weekIndex: number) => {
         const newNotes = { ...notes };
         delete newNotes[weekIndex];
         setNotes(newNotes);
-
-        const data = loadCalendarData();
-        if (data) {
-            data.notes = newNotes;
-            saveCalendarData(data);
-        }
+        onNotesUpdate(newNotes);
     };
 
-    const handleExport = async () => {
-        if (!calendarRef.current) return;
-
-        try {
-            const canvas = await html2canvas(calendarRef.current, {
-                backgroundColor: '#171717',
-                scale: 2,
-            });
-
-            const link = document.createElement('a');
-            link.download = 'life-calendar.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        } catch (error) {
-            console.error('Export failed:', error);
-        }
-    };
-
-    const handleReset = () => {
-        clearCalendarData();
-        onReset();
+    const handleSettingsSave = (newBirthdate: Date, newLifeExpectancy: number) => {
+        onUpdateBirthdate(newBirthdate, newLifeExpectancy);
     };
 
     return (
-        <div className="h-screen bg-neutral-900 flex flex-col overflow-hidden">
-            {/* Minimal Header - Only tabs and actions */}
-            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3">
-                {/* View Mode Tabs */}
+        <div className="h-screen bg-neutral-900 flex flex-col overflow-hidden relative">
+            {/* Fixed Time Card - Top Left */}
+            <div className="fixed top-4 left-4 z-40">
+                <LiveClock />
+            </div>
+
+            {/* Fixed Quote - Bottom Right */}
+            <div className="fixed bottom-6 right-6 z-40 max-w-xs">
+                <QuoteDisplay />
+            </div>
+
+            {/* Minimal Header with tabs and actions - Centered */}
+            <div className="flex-shrink-0 flex items-center justify-center px-4 py-3 relative z-30">
+                {/* View Mode Tabs - Centered */}
                 <div className="flex items-center gap-1">
                     {VIEW_MODES.map((mode) => {
                         const Icon = mode.icon;
@@ -180,17 +162,15 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
                     })}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button onClick={handleExport} className="p-2 text-neutral-500 hover:text-white transition-colors">
-                        <Download className="w-4 h-4" />
-                    </button>
-                    <button onClick={handleReset} className="p-2 text-neutral-500 hover:text-white transition-colors">
-                        <RotateCcw className="w-4 h-4" />
+                {/* Actions - Top Right */}
+                <div className="absolute right-4 top-3 flex items-center gap-2">
+                    <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-neutral-500 hover:text-white transition-colors">
+                        <Settings className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            {/* Calendar Views */}
+            {/* Calendar Views - Always Centered */}
             <AnimatePresence mode="wait">
                 {viewMode === 'life' && (
                     <motion.div
@@ -198,31 +178,39 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="flex-1 flex flex-col overflow-hidden"
+                        className="flex-1 flex flex-col overflow-auto"
                     >
-                        {/* Life Calendar Grid */}
-                        <div className="flex-1 flex items-center justify-center px-8">
+                        {/* Life Calendar Grid - Centered with scroll */}
+                        <div className="flex-1 flex items-center justify-center p-4 min-h-0">
                             <div ref={calendarRef} className="flex">
-                                {/* Age Labels - aligned to each decade start */}
-                                <div className="flex flex-col mr-3">
+                                {/* Age Labels */}
+                                <div className="flex flex-col mr-2">
                                     {weeksByYear.map((_, yearIndex) => (
                                         <div
                                             key={yearIndex}
                                             style={{
                                                 height: `${cellSize}px`,
+                                                lineHeight: `${cellSize}px`,
                                                 marginBottom: yearIndex < lifeExpectancy - 1
                                                     ? (yearIndex + 1) % 10 === 0
                                                         ? `${cellGap + decadeGap}px`
                                                         : `${cellGap}px`
                                                     : 0,
                                             }}
-                                            className="flex items-center justify-end"
+                                            className="text-right pr-1"
                                         >
                                             {yearIndex % 10 === 0 && (
-                                                <span className="text-[11px] text-neutral-500 tabular-nums">{yearIndex}</span>
+                                                <span className="text-[9px] text-neutral-500 tabular-nums">{yearIndex}</span>
                                             )}
                                         </div>
                                     ))}
+                                    {/* Add 100 label at the bottom */}
+                                    <div
+                                        style={{ height: `${cellSize}px`, lineHeight: `${cellSize}px`, marginTop: `${cellGap}px` }}
+                                        className="text-right pr-1"
+                                    >
+                                        <span className="text-[9px] text-neutral-500 tabular-nums">{lifeExpectancy}</span>
+                                    </div>
                                 </div>
 
                                 {/* Grid */}
@@ -256,15 +244,6 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
                                     ))}
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Life Calendar Footer - Only percentage and weeks */}
-                        <div className="flex-shrink-0 text-center py-4">
-                            <p className="text-sm text-neutral-400">
-                                <span className="text-orange-500 font-medium">{progress.toFixed(1)}%</span>
-                                <span className="mx-2 text-neutral-600">·</span>
-                                <span>{weeksRemaining.toLocaleString()} weeks left</span>
-                            </p>
                         </div>
                     </motion.div>
                 )}
@@ -302,6 +281,15 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
                 onSave={handleSaveNote}
                 onDelete={handleDeleteNote}
             />
-        </div>
+
+            {/* Birthday Settings Modal */}
+            <BirthdayModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                currentBirthdate={birthdate}
+                currentLifeExpectancy={lifeExpectancy}
+                onSave={handleSettingsSave}
+            />
+        </div >
     );
 }

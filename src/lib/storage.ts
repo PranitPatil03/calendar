@@ -5,22 +5,41 @@ export type { CalendarData } from './calendar-utils';
 
 const STORAGE_KEY = 'life-calendar-data';
 
+// Default values - November 3, 2002 with 100 year life expectancy
+export const DEFAULT_BIRTHDATE = new Date(2002, 10, 3); // Month is 0-indexed, so 10 = November
+export const DEFAULT_LIFE_EXPECTANCY = 100;
+
+export function getDefaultCalendarData(): CalendarData {
+    return {
+        birthdate: DEFAULT_BIRTHDATE.toISOString(),
+        lifeExpectancy: DEFAULT_LIFE_EXPECTANCY,
+        notes: {},
+    };
+}
+
 export function saveCalendarData(data: CalendarData): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-export function loadCalendarData(): CalendarData | null {
-    if (typeof window === 'undefined') return null;
+export function loadCalendarData(): CalendarData {
+    if (typeof window === 'undefined') return getDefaultCalendarData();
 
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
+    if (!stored) return getDefaultCalendarData();
 
     try {
         return JSON.parse(stored) as CalendarData;
     } catch {
-        return null;
+        return getDefaultCalendarData();
     }
+}
+
+export function updateBirthdate(birthdate: Date, lifeExpectancy: number): void {
+    const data = loadCalendarData();
+    data.birthdate = birthdate.toISOString();
+    data.lifeExpectancy = lifeExpectancy;
+    saveCalendarData(data);
 }
 
 export function clearCalendarData(): void {

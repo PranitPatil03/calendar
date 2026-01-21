@@ -41,10 +41,25 @@ export function YearCalendar({ year = new Date().getFullYear() }: YearCalendarPr
             });
             return quarters;
         } else {
-            // weeks - 7 days per row
+            // weeks view - show 52 weeks as individual cells in a 13x4 grid
+            // Each week is represented by its first day
             const weeks: DayData[][] = [];
+            const weeksPerRow = 13; // 13 weeks per row = 4 rows for 52 weeks
+            let currentRow: DayData[] = [];
+
             for (let i = 0; i < days.length; i += 7) {
-                weeks.push(days.slice(i, i + 7));
+                // Take the first day of each week to represent the week
+                const weekDay = days[i];
+                currentRow.push(weekDay);
+
+                if (currentRow.length === weeksPerRow) {
+                    weeks.push(currentRow);
+                    currentRow = [];
+                }
+            }
+            // Push remaining weeks
+            if (currentRow.length > 0) {
+                weeks.push(currentRow);
             }
             return weeks;
         }
@@ -88,15 +103,16 @@ export function YearCalendar({ year = new Date().getFullYear() }: YearCalendarPr
                 setCellSize(Math.max(5, Math.floor(size)));
                 setCellGap(size > 7 ? 3 : 2);
             } else {
-                // Weeks view - maximize
-                const numWeeks = 53;
+                // Weeks view - 13 columns x 4 rows grid
+                const cols = 13;
+                const rows = 4;
                 const size = Math.min(
-                    (availableWidth - 40) / 7,
-                    (availableHeight - 20) / numWeeks,
-                    14
+                    (availableWidth - 60) / cols,
+                    (availableHeight - 40) / rows,
+                    24
                 );
-                setCellSize(Math.max(5, Math.floor(size)));
-                setCellGap(size > 8 ? 3 : 2);
+                setCellSize(Math.max(10, Math.floor(size)));
+                setCellGap(Math.max(4, Math.floor(size * 0.3)));
             }
         };
 
@@ -120,8 +136,8 @@ export function YearCalendar({ year = new Date().getFullYear() }: YearCalendarPr
                         key={mode}
                         onClick={() => setViewMode(mode)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all ${viewMode === mode
-                                ? 'bg-neutral-700 text-white'
-                                : 'text-neutral-500 hover:text-neutral-300'
+                            ? 'bg-neutral-700 text-white'
+                            : 'text-neutral-500 hover:text-neutral-300'
                             }`}
                     >
                         {mode}
@@ -217,17 +233,48 @@ export function YearCalendar({ year = new Date().getFullYear() }: YearCalendarPr
                 )}
             </div>
 
-            {/* Footer Stats */}
+            {/* Footer Stats - View Specific */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="flex-shrink-0 text-center py-4"
             >
-                <p className="text-sm text-neutral-400">
-                    <span className="text-orange-500 font-medium">{daysRemaining}d left</span>
-                    <span className="mx-2 text-neutral-600">·</span>
-                    <span>{progress.toFixed(0)}%</span>
-                </p>
+                {viewMode === 'months' && (
+                    <p className="text-sm text-neutral-400">
+                        <span className="text-orange-500 font-medium">{daysRemaining}d left</span>
+                        <span className="mx-2 text-neutral-600">·</span>
+                        <span>{progress.toFixed(0)}% of year complete</span>
+                    </p>
+                )}
+                {viewMode === 'weeks' && (() => {
+                    const currentWeek = Math.ceil((daysLived + 1) / 7);
+                    const weeksLeft = 52 - currentWeek;
+                    return (
+                        <p className="text-sm text-neutral-400">
+                            <span className="text-orange-500 font-medium">Week {currentWeek}</span>
+                            <span className="mx-2 text-neutral-600">·</span>
+                            <span>{weeksLeft} weeks left this year</span>
+                        </p>
+                    );
+                })()}
+                {viewMode === 'quarters' && (() => {
+                    const today = new Date();
+                    const currentQuarter = Math.floor(today.getMonth() / 3) + 1;
+                    const quarterStartMonth = (currentQuarter - 1) * 3;
+                    const quarterStart = new Date(year, quarterStartMonth, 1);
+                    const quarterEnd = new Date(year, quarterStartMonth + 3, 0);
+                    const quarterDays = Math.floor((quarterEnd.getTime() - quarterStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+                    const daysIntoQuarter = Math.floor((today.getTime() - quarterStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+                    const quarterProgress = Math.min(100, (daysIntoQuarter / quarterDays) * 100);
+                    const quarterDaysLeft = quarterDays - daysIntoQuarter;
+                    return (
+                        <p className="text-sm text-neutral-400">
+                            <span className="text-orange-500 font-medium">Q{currentQuarter}: {quarterProgress.toFixed(0)}%</span>
+                            <span className="mx-2 text-neutral-600">·</span>
+                            <span>{quarterDaysLeft}d left in Q{currentQuarter}</span>
+                        </p>
+                    );
+                })()}
             </motion.div>
         </div>
     );

@@ -43,8 +43,23 @@ export function GoalCalendar() {
             days.forEach(day => quarters[Math.floor(day.month / 3)].push(day));
             return quarters;
         } else {
+            // weeks view - show 52 weeks as individual cells in a 13x4 grid
             const weeks: DayData[][] = [];
-            for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+            const weeksPerRow = 13;
+            let currentRow: DayData[] = [];
+
+            for (let i = 0; i < days.length; i += 7) {
+                const weekDay = days[i];
+                currentRow.push(weekDay);
+
+                if (currentRow.length === weeksPerRow) {
+                    weeks.push(currentRow);
+                    currentRow = [];
+                }
+            }
+            if (currentRow.length > 0) {
+                weeks.push(currentRow);
+            }
             return weeks;
         }
     }, [days, viewMode]);
@@ -68,9 +83,16 @@ export function GoalCalendar() {
                 setCellSize(Math.max(5, Math.floor(size)));
                 setCellGap(size > 7 ? 3 : 2);
             } else {
-                const size = Math.min((availableWidth - 40) / 7, (availableHeight - 20) / 53, 14);
-                setCellSize(Math.max(5, Math.floor(size)));
-                setCellGap(size > 8 ? 3 : 2);
+                // Weeks view - 13 columns x 4 rows grid
+                const cols = 13;
+                const rows = 4;
+                const size = Math.min(
+                    (availableWidth - 60) / cols,
+                    (availableHeight - 40) / rows,
+                    24
+                );
+                setCellSize(Math.max(10, Math.floor(size)));
+                setCellGap(Math.max(4, Math.floor(size * 0.3)));
             }
         };
 
@@ -229,16 +251,61 @@ export function GoalCalendar() {
                 )}
             </div>
 
-            {/* Stats Footer */}
+            {/* Stats Footer - View Specific */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-shrink-0 text-center py-3">
                 {currentGoal ? (
                     <p className="text-sm text-neutral-400">
                         <span className="text-orange-500 font-medium">{completedCount} days</span>
                         <span className="mx-2 text-neutral-600">·</span>
-                        <span>{((completedCount / currentDayIndex) * 100).toFixed(0)}% completion</span>
+                        <span>{currentDayIndex > 0 ? ((completedCount / currentDayIndex) * 100).toFixed(0) : 0}% completion</span>
                     </p>
                 ) : (
-                    <p className="text-sm text-neutral-500">Select or add a goal</p>
+                    <>
+                        {viewMode === 'months' && (() => {
+                            const today = new Date();
+                            const currentMonth = today.getMonth();
+                            const daysInMonth = new Date(year, currentMonth + 1, 0).getDate();
+                            const dayOfMonth = today.getDate();
+                            const monthProgress = (dayOfMonth / daysInMonth) * 100;
+                            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                            return (
+                                <p className="text-sm text-neutral-400">
+                                    <span className="text-orange-500 font-medium">{monthNames[currentMonth]}</span>
+                                    <span className="mx-2 text-neutral-600">·</span>
+                                    <span>Day {dayOfMonth} of {daysInMonth} ({monthProgress.toFixed(0)}%)</span>
+                                </p>
+                            );
+                        })()}
+                        {viewMode === 'weeks' && (() => {
+                            const currentWeek = Math.ceil((currentDayIndex + 1) / 7);
+                            const dayOfWeek = new Date().getDay();
+                            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            return (
+                                <p className="text-sm text-neutral-400">
+                                    <span className="text-orange-500 font-medium">Week {currentWeek}</span>
+                                    <span className="mx-2 text-neutral-600">·</span>
+                                    <span>{dayNames[dayOfWeek]}</span>
+                                </p>
+                            );
+                        })()}
+                        {viewMode === 'quarters' && (() => {
+                            const today = new Date();
+                            const currentQuarter = Math.floor(today.getMonth() / 3) + 1;
+                            const quarterStartMonth = (currentQuarter - 1) * 3;
+                            const quarterStart = new Date(year, quarterStartMonth, 1);
+                            const quarterEnd = new Date(year, quarterStartMonth + 3, 0);
+                            const quarterDays = Math.floor((quarterEnd.getTime() - quarterStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+                            const daysIntoQuarter = Math.floor((today.getTime() - quarterStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+                            const quarterProgress = Math.min(100, (daysIntoQuarter / quarterDays) * 100);
+                            return (
+                                <p className="text-sm text-neutral-400">
+                                    <span className="text-orange-500 font-medium">Q{currentQuarter}: {quarterProgress.toFixed(0)}%</span>
+                                    <span className="mx-2 text-neutral-600">·</span>
+                                    <span>{daysIntoQuarter}d into Q{currentQuarter}</span>
+                                </p>
+                            );
+                        })()}
+                    </>
                 )}
             </motion.div>
         </div>
