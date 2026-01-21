@@ -5,9 +5,9 @@ export type { CalendarData } from './calendar-utils';
 
 const STORAGE_KEY = 'life-calendar-data';
 
-// Default values - November 3, 2002 with 100 year life expectancy
+// Default values - November 3, 2002 with 90 year life expectancy
 export const DEFAULT_BIRTHDATE = new Date(2002, 10, 3); // Month is 0-indexed, so 10 = November
-export const DEFAULT_LIFE_EXPECTANCY = 100;
+export const DEFAULT_LIFE_EXPECTANCY = 90;
 
 export function getDefaultCalendarData(): CalendarData {
     return {

@@ -5,13 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WeekCell } from './week-cell';
 import { NoteModal } from './note-modal';
 import { YearCalendar } from './year-calendar';
-import { GoalCalendar } from './goal-calendar';
 import { LiveClock } from './live-clock';
 import { QuoteDisplay } from './quote-display';
 import { BirthdayModal } from './birthday-modal';
 import { generateCalendarWeeks, WeekData, calculateWeeksLived, getTotalWeeks, getProgressPercentage, CalendarViewMode } from '@/lib/calendar-utils';
 import { saveCalendarData, loadCalendarData, clearCalendarData } from '@/lib/storage';
-import { Calendar, CalendarDays, Target, Settings } from 'lucide-react';
+import { Calendar, CalendarDays, Settings } from 'lucide-react';
 
 interface CalendarGridProps {
     birthdate: Date;
@@ -24,7 +23,6 @@ interface CalendarGridProps {
 const VIEW_MODES = [
     { id: 'life' as CalendarViewMode, label: 'Life', icon: Calendar },
     { id: 'year' as CalendarViewMode, label: 'Year', icon: CalendarDays },
-    { id: 'goal' as CalendarViewMode, label: 'Goals', icon: Target },
 ];
 
 export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, onUpdateBirthdate, onNotesUpdate }: CalendarGridProps) {
@@ -178,10 +176,10 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="flex-1 flex flex-col overflow-auto"
+                        className="flex-1 flex flex-col overflow-hidden"
                     >
-                        {/* Life Calendar Grid - Centered with scroll */}
-                        <div className="flex-1 flex items-center justify-center p-4 min-h-0">
+                        {/* Life Calendar Grid - Centered */}
+                        <div className="flex-1 flex items-center justify-center p-2">
                             <div ref={calendarRef} className="flex">
                                 {/* Age Labels */}
                                 <div className="flex flex-col mr-2">
@@ -257,18 +255,6 @@ export function CalendarGrid({ birthdate, lifeExpectancy, notes: initialNotes, o
                         className="flex-1 flex flex-col overflow-hidden"
                     >
                         <YearCalendar />
-                    </motion.div>
-                )}
-
-                {viewMode === 'goal' && (
-                    <motion.div
-                        key="goal"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex-1 flex flex-col overflow-hidden"
-                    >
-                        <GoalCalendar />
                     </motion.div>
                 )}
             </AnimatePresence>
